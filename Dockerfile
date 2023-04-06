@@ -1,9 +1,9 @@
-FROM circleci/node:14
-RUN sudo npm install -g npm@7
-RUN npm -v
+FROM cimg/node:18.14
+RUN sudo npm install -g npm@9 && \
+    npm -v
 WORKDIR /tmp
-RUN sudo apt-get update
-RUN sudo apt-get install -y \
+RUN sudo apt-get update && \
+    sudo apt-get install -y \
   xdg-utils \
   libatk-bridge2.0-0 \
   libgtk-3.0 \
@@ -16,12 +16,36 @@ RUN sudo apt-get install -y \
   lsof \
   jq \
   groff \
-  python \
-  python-pip \
-  libpython-dev \
   less \
-  tree
+  tree \
+  nano
 
+# Install NodeJS tools
+RUN mkdir /home/circleci/.npm-global && \
+    mkdir /home/circleci/.npm-global/lib && \
+    sudo npm install -g create-react-app
+
+# Install Cypress dependencies
+RUN sudo apt-get install libgtk2.0-0 libgtk-3-0 libgbm-dev libnotify-dev libgconf-2-4 libnss3 libxss1 libasound2 libxtst6 xauth xvfb
+
+# Install Python
+WORKDIR /tmp
+RUN sudo apt install build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libsqlite3-dev libreadline-dev libffi-dev curl && \
+    curl -O https://www.python.org/ftp/python/3.8.16/Python-3.8.16.tar.xz && \
+    sudo tar -C /usr/local -xf Python-3.8.16.tar.xz && \
+    sudo rm Python-3.8.16.tar.xz
+WORKDIR /usr/local/Python-3.8.16
+RUN sudo ./configure && \
+    sudo make -j 4 && \
+    sudo make altinstall && \
+    sudo curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+    sudo python3.8 get-pip.py && \
+    sudo update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.8 1 && \
+    pip3 install --user pipenv && \
+    python3 --version && \
+    virtualenv --version
+
+# Install AWS CLI
 RUN sudo pip install awscli
 
 # Put Node.js PKG binaries in cache location
@@ -71,56 +95,30 @@ RUN mkdir -p ~/.pkg-cache/$binaries_tag && \
 
 # Install Java
 WORKDIR /tmp
-RUN curl -O https://download.java.net/java/GA/jdk11/9/GPL/openjdk-11.0.2_linux-x64_bin.tar.gz
-RUN tar zxvf openjdk-11.0.2_linux-x64_bin.tar.gz
-RUN sudo mv jdk-11.0.2 /usr/local
+RUN curl -O https://download.java.net/java/GA/jdk11/9/GPL/openjdk-11.0.2_linux-x64_bin.tar.gz && \
+    tar zxvf openjdk-11.0.2_linux-x64_bin.tar.gz && \
+    sudo mv jdk-11.0.2 /usr/local && \
+    rm openjdk-11.0.2_linux-x64_bin.tar.gz
 ENV PATH=${PATH}:/usr/local/jdk-11.0.2/bin
 
 # Install Gradle
 WORKDIR /tmp
-RUN wget https://services.gradle.org/distributions/gradle-6.3-bin.zip -P /tmp
-RUN sudo unzip -d /opt/gradle /tmp/gradle-*.zip
+RUN wget https://services.gradle.org/distributions/gradle-6.3-bin.zip -P /tmp && \
+    sudo unzip -d /opt/gradle /tmp/gradle-*.zip && \
+    rm /tmp/gradle-*.zip
 ENV GRADLE_HOME=/opt/gradle/gradle-6.3
 ENV PATH=${PATH}:/opt/gradle/gradle-6.3/bin
 
 # Install Go
 WORKDIR /tmp
-RUN curl -O https://dl.google.com/go/go1.14.1.linux-amd64.tar.gz
-RUN sudo tar -C /usr/local -xzf go1.14.1.linux-amd64.tar.gz
+RUN curl -O https://dl.google.com/go/go1.14.1.linux-amd64.tar.gz && \
+    sudo tar -C /usr/local -xzf go1.14.1.linux-amd64.tar.gz && \
+    rm go1.14.1.linux-amd64.tar.gz
 ENV PATH=${PATH}:/usr/local/go/bin
 
-# Install Python
-WORKDIR /tmp
-RUN sudo apt install build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libsqlite3-dev libreadline-dev libffi-dev curl
-RUN curl -O https://www.python.org/ftp/python/3.8.2/Python-3.8.2.tar.xz
-RUN sudo tar -C /usr/local -xf Python-3.8.2.tar.xz
-WORKDIR /usr/local/Python-3.8.2
-RUN sudo ./configure
-RUN sudo make -j 4
-RUN sudo make install
-RUN sudo apt install python3-pip
-RUN pip3 install --user pipenv
-RUN python3 --version
-
 #Install .Net
-WORKDIR /tmp
-RUN sudo apt-get install apt-transport-https ca-certificates
-RUN wget -O- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.asc.gpg
-RUN sudo mv microsoft.asc.gpg /etc/apt/trusted.gpg.d/
-RUN wget https://packages.microsoft.com/config/debian/9/prod.list
-RUN sudo mv prod.list /etc/apt/sources.list.d/microsoft-prod.list
-RUN sudo chown root:root /etc/apt/trusted.gpg.d/microsoft.asc.gpg
-RUN sudo chown root:root /etc/apt/sources.list.d/microsoft-prod.list
-
-RUN sudo apt-get update
-RUN sudo apt-get install apt-transport-https
-RUN sudo apt-get update
-RUN sudo apt-get install dotnet-sdk-3.1
-RUN sudo apt-get install dotnet-sdk-6.0
-RUN dotnet --version
-RUN dotnet --list-sdks
-RUN dotnet tool install -g amazon.lambda.tools
-RUN dotnet tool install -g amazon.lambda.testtool-3.1
-RUN dotnet tool install -g amazon.lambda.testtool-6.0
+RUN sudo apt-get install -y dotnet-sdk-6.0 && \
+    sudo dotnet --list-sdks && \
+    dotnet tool install -g amazon.lambda.tools && \
+    dotnet tool install -g amazon.lambda.testtool-6.0
 ENV PATH=${PATH}:/home/circleci/.dotnet/tools
-

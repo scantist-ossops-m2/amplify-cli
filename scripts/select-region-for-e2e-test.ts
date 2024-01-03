@@ -1,5 +1,6 @@
 import { AWS_REGIONS_TO_RUN_TESTS } from './cci-utils';
 import * as fs from 'fs-extra';
+import path from 'path';
 
 /**
  * This script prints region assignment for an e2e test job.
@@ -20,12 +21,11 @@ if (!selectedRegion) {
   }
   // Offset should be changed if we want re-shuffle regions.
   const offset = 0;
-  const waitForIdsFilePath = './codebuild_specs/wait_for_ids.json';
+  const waitForIdsFilePath = path.join('.', 'codebuild_specs', 'wait_for_ids.json');
   const jobIds = JSON.parse(fs.readFileSync(waitForIdsFilePath, 'utf-8')) as Array<string>;
   let jobPosition = jobIds.indexOf(jobId);
   if (jobPosition < 0) {
-    // this should never happen if PR checks pass, but just in case fall back to first region.
-    jobPosition = 0;
+    throw new Error(`Job ${jobId} not found in ${JSON.stringify(jobIds)}`);
   }
   const regionIndex = (jobPosition + offset) % AWS_REGIONS_TO_RUN_TESTS.length;
 
